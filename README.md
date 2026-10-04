@@ -5,7 +5,9 @@ A free, low-code research-monitoring agent built with **n8n**. Every week it col
 - **Cost: 0 €.** Everything runs on free tiers; no credit card required.
 - **Low-code:** one n8n workflow, a few small JavaScript nodes, no server code.
 - **Idempotent:** a paper is scored once, then remembered, so it never reaches the digest twice.
+
 <img src="docs/images/workflow.png" alt="Workflow" width="800">
+
 <p>
   <img src="docs/images/digest-email.png" alt="Email digest" width="480">
   <img src="docs/images/digest-telegram.png" alt="Telegram digest" width="300">
@@ -151,5 +153,3 @@ ai-research-radar/
 ## License
 
 MIT, see [LICENSE](LICENSE).
-#   a i - r e s e a r c h - r a d a r  
- 
