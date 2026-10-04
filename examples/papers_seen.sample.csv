@@ -1,0 +1,16 @@
+paper_id,title,source,category,score
+hal:hal-05767575,PrivacySkills: How Privacy Guidance Shapes Source Selection in LLM Agents,HAL,AI Agents,10
+openalex:W7214793986,nox-mem: Pain-Weighted Hybrid Memory for LLM Agents,OpenAlex,AI Agents,10
+openalex:W7169859113,Testing Retrieval-Augmented Generation Systems with Chunk Coverage,OpenAlex,RAG & Information Retrieval,10
+openalex:W7214897191,U-RAG: Utility-aware Retrieval-Augmented Generation via marginal gain modeling,OpenAlex,RAG & Information Retrieval,10
+openalex:W7212359997,"Catastrophic Forgetting in Parameter-Efficient Fine-Tuning of Small Language Models: A Controlled Comparison of LoRA, Bottleneck Adapters, and Full Fine-Tuning under Sequential Task Learning",OpenAlex,Fine-tuning/Adaptation,10
+arxiv:2610.02199,TACO: Ternary Absolute-max Column-wise One-sparse Optimizer for LLM Fine-Tuning,arXiv,Fine-tuning/Adaptation,10
+arxiv:2610.02150,From Knowledge Access to Source Learning: Developing Source-Specific Competence,arXiv,RAG & Information Retrieval,10
+arxiv:2610.02070,Causal Memory Policy: Making Memory Utility Identifiable by Intervening on Retrieval,arXiv,RAG & Information Retrieval,10
+arxiv:2610.02066,External Observers May See More Clearly: Cross-Model Span-Level Hallucination Detection in Large Language Models via Hidden State Probing,arXiv,LLM & Foundation Models,10
+arxiv:2610.02039,CARM: Cancellation-Aware Response Masking for LLM Reinforcement Learning,arXiv,Fine-tuning/Adaptation,10
+hal:hal-05747997,On the Efficacy of Vector Retrieval System under Hardware Faults,HAL,RAG & Information Retrieval,6
+hal:hal-05754588,A Model-Driven Approach To Support The Understanding Of Machine Learning Pipelines.,HAL,MLOps/AI Systems,6
+hal:hal-05760313,Knowledge Distillation for Intelligent Softwarized Networks: Advances and Open Challenges,HAL,Efficient AI,6
+hal:hal-05741583,When Trivia Is Not Trivial: Everyday Knowledge Failures in Multilingual LLMs,HAL,AI Evaluation,6
+openalex:W7214651627,Descriptive adequacy and Large Language Models,OpenAlex,NLP,6

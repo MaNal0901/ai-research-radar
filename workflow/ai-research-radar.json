@@ -1,0 +1,879 @@
+{
+  "name": "AI Research Radar",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtDay": [
+                1
+              ],
+              "triggerAtHour": 8,
+              "triggerAtMinute": "={{ 0 }}"
+            },
+            {}
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -1008,
+        -80
+      ],
+      "id": "dd916297-81da-4e46-b400-e2da4d7027a2",
+      "name": "Schedule Trigger",
+      "notesInFlow": true,
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "dataPropertyName": "xml",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.xml",
+      "typeVersion": 1,
+      "position": [
+        608,
+        -384
+      ],
+      "id": "c82aeb5f-6e34-4fea-a2c6-049d96f7f5ea",
+      "name": "XML"
+    },
+    {
+      "parameters": {
+        "command": "=wget -qO- \"{{ $json.url }}\""
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        48,
+        -368
+      ],
+      "id": "8e2e95b3-27be-4e1b-85c1-2e295cdb19c4",
+      "name": "Execute Command",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { xml: $input.first().json.stdout } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        368,
+        -384
+      ],
+      "id": "5698bb27-e08e-4888-b4e9-47d6ab069ac1",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.promptText }}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=Tu es un assistant de veille scientifique pour un profil d'ingénieur en IA.\n\nTu reçois plusieurs papiers (paper_id, titre, résumé), séparés par une ligne \"---\". Évalue chaque papier, puis classe-les entre eux. Les 8 catégories :\n1. LLM & Foundation Models\n2. AI Agents\n3. RAG & Information Retrieval\n4. Fine-tuning/Adaptation\n5. NLP\n6. MLOps/AI Systems\n7. Efficient AI\n8. AI Evaluation\n\nRègle principale : le sujet central du papier doit relever d'une de ces catégories. Si un LLM n'est qu'un composant secondaire d'un système consacré à autre chose (médical, vision, robotique, biologie, finance, etc.), le papier est hors sujet : sa catégorie est \"Autre\" et relevance vaut 0 ou 1.\n\nPour chaque papier, donne trois critères, chacun avec un nombre entier :\n\n- relevance (0 à 4) : 4 = le sujet central relève clairement d'une des 8 catégories ; 2 = lien partiel ; 0 = hors sujet\n- utility (0 à 3) : 3 = un ingénieur peut réutiliser directement une méthode, un outil, un benchmark ou un code, avec résultats chiffrés solides ; 2 = utile, application pratique plausible ; 1 = surtout théorique, très spécialisé (une langue, un domaine, une tâche étroite) ou interprétabilité ; 0 = aucune utilité pratique\n- rigor (0 à 3) : 3 = contribution nouvelle ET résultats comparés à des baselines solides ; 2 = évaluation correcte mais limitée ; 1 = travail incrémental, position paper ou évaluation faible ; 0 = aucune évaluation\n\nRègles de calibrage, à respecter strictement :\n- Un score total de 10 est exceptionnel : au plus un papier sur plusieurs lots.\n- Dans un lot de 8 papiers, au plus 2 doivent avoir un total supérieur ou égal à 8.\n- Un papier spécialisé sur une langue, un domaine ou une tâche étroite ne dépasse pas 1 en utility.\n\nAjoute pour chaque papier un rang (rank) : classe les papiers du lot du meilleur (1) au moins bon, avec des rangs tous différents.\n\nRéponds uniquement avec un tableau JSON valide, sans texte avant ou après et sans balises de code. Il contient exactement un objet par papier reçu, avec ces clés :\n- paper_id (copié exactement tel que reçu)\n- relevance, utility, rigor (entiers)\n- rank (entier, 1 = meilleur papier du lot)\n- category (exactement un des huit noms ci-dessus, ou \"Autre\")\n- summary_en (résumé en anglais, deux phrases maximum, clair et factuel)"
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        2016,
+        -64
+      ],
+      "id": "246d012c-7a02-4a91-8137-717590ae2a70",
+      "name": "Basic LLM Chain",
+      "retryOnFail": true,
+      "maxTries": 4,
+      "waitBetweenTries": 5000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.5-flash-lite",
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        2016,
+        176
+      ],
+      "id": "d85abd8c-5aca-407a-8131-67b5434b8b17",
+      "name": "Google Gemini Chat Model",
+      "notesInFlow": false,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "uie7TRzrjGKJJkXX",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const entries = $input.first().json.feed.entry;\nconst entryArray = Array.isArray(entries) ? entries : [entries];\n\nreturn entryArray.map((entry) => ({\n  json: {\n    paper_id: 'arxiv:' + entry.id.replace(/^https?:\\/\\/arxiv\\.org\\/abs\\//, '').replace(/v\\d+$/, ''),\n    title: entry.title?.replace(/\\s+/g, ' ').trim(),\n    summary: entry.summary?.replace(/\\s+/g, ' ').trim(),\n    published: entry.published,\n    url: entry.id,\n    source: 'arXiv',\n  },\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        832,
+        -400
+      ],
+      "id": "76675d85-ea58-4ef3-8977-bcee200a43ca",
+      "name": "Normalize arXiv"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "ba47a21e-a7a1-4e4f-8d93-3701f0f66fd2",
+              "leftValue": "={{ $json.score }}",
+              "rightValue": 7,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2576,
+        96
+      ],
+      "id": "e4322332-268f-44d0-8546-ff270900a95b",
+      "name": "Score >= 7"
+    },
+    {
+      "parameters": {
+        "chatId": "123456789",
+        "text": "={{$json.telegramText  }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        3280,
+        -32
+      ],
+      "id": "93f7a072-f80d-4df3-8be5-f2debf9fa590",
+      "name": "Send a text message",
+      "webhookId": "26fe8f95-7355-426b-b1b2-a813cd30da4c",
+      "credentials": {
+        "telegramApi": {
+          "id": "2lDXhPZkLnBAsuM6",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sortFieldsUi": {
+          "sortField": [
+            {
+              "fieldName": "score",
+              "order": "descending"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.sort",
+      "typeVersion": 1,
+      "position": [
+        2864,
+        80
+      ],
+      "id": "92731dca-c22c-440b-829e-f31b171d24c9",
+      "name": "Sort"
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "value": "bTKKbQvUFL74R9KL",
+          "mode": "list",
+          "cachedResultName": "papers_seen",
+          "cachedResultUrl": "/projects/IrdPzQGlByV8JoXe/datatables/bTKKbQvUFL74R9KL"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "paper_id": "={{ $json.paper_id }}",
+            "title": "={{ $json.title }}",
+            "source": "={{ $json.source }}",
+            "category": "={{ $json.category }}",
+            "score": "={{ $json.score }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "paper_id",
+              "displayName": "paper_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "title",
+              "displayName": "title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "source",
+              "displayName": "source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "category",
+              "displayName": "category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "score",
+              "displayName": "score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2576,
+        -288
+      ],
+      "id": "2bdfb2f8-37ab-4cc4-841b-bff13c2e8c52",
+      "name": "Mémoriser"
+    },
+    {
+      "parameters": {
+        "jsCode": "const TOP_PER_BATCH = 2;   // au plus 2 papiers par lot peuvent atteindre 7+\n\nconst papers = $('Nouveau papier ?').all().map(i => i.json);\nconst byId = Object.fromEntries(papers.map(p => [p.paper_id, p]));\nconst clamp = (v, max) => Math.max(0, Math.min(max, Math.round(Number(v) || 0)));\nconst out = [];\n\nfor (const item of $input.all()) {\n  const raw = String(item.json.text || '')\n    .replace(/```json|```/g, '')\n    .trim()\n    .replace(/,\\s*([}\\]])/g, '$1');\n  if (!raw) continue; // échec Gemini : ce lot sera retenté la semaine suivante\n\n  let arr;\n  try { arr = JSON.parse(raw); } catch (e) { continue; }\n  if (!Array.isArray(arr)) arr = [arr];\n\n  const scored = [];\n  for (const ai of arr) {\n    const paper = byId[ai.paper_id];\n    if (!paper) continue;\n    const category = ai.category || 'Autre';\n    let score = clamp(ai.relevance, 4) + clamp(ai.utility, 3) + clamp(ai.rigor, 3);\n    if (category === 'Autre') score = Math.min(score, 3);\n    scored.push({ paper, ai, category, score, rank: Number(ai.rank) || 99 });\n  }\n\n  // classement dans le lot : score décroissant, puis rang donné par Gemini\n  scored.sort((a, b) => b.score - a.score || a.rank - b.rank);\n\n  scored.forEach((s, idx) => {\n    // seuls les meilleurs du lot peuvent atteindre 7 ou plus\n    const finalScore = idx < TOP_PER_BATCH ? s.score : Math.min(s.score, 6);\n    out.push({ json: {\n      ...s.paper,\n      score: finalScore,\n      raw_score: s.score,\n      rank: s.rank,\n      category: s.category,\n      summary_en: s.ai.summary_en || ''\n    }});\n  });\n}\nreturn out;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2384,
+        -80
+      ],
+      "id": "52fc1a77-0a31-4f86-a5ad-fd0db94dd1e2",
+      "name": "Parse Gemini"
+    },
+    {
+      "parameters": {
+        "operation": "rowNotExists",
+        "dataTableId": {
+          "__rl": true,
+          "value": "bTKKbQvUFL74R9KL",
+          "mode": "list",
+          "cachedResultName": "papers_seen",
+          "cachedResultUrl": "/projects/IrdPzQGlByV8JoXe/datatables/bTKKbQvUFL74R9KL"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "paper_id",
+              "keyValue": "={{ $json.paper_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1392,
+        -64
+      ],
+      "id": "78280dae-2115-4fe0-ac35-4ac755a643e7",
+      "name": "Nouveau papier ?"
+    },
+    {
+      "parameters": {
+        "sendTo": "you@example.com",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.html }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        3280,
+        176
+      ],
+      "id": "95862926-7f82-4b95-8f6d-99309dbbb828",
+      "name": "Send a message",
+      "webhookId": "b782d39a-b688-4837-9997-78bcc9be979f",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "BbiYaOVMtIUW9xcv",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const seen = new Set();\nconst out = [];\n\n// OpenAlex fournit l'abstract sous forme d'index inversé : {mot: [positions]}\nfunction rebuild(inv) {\n  const words = [];\n  for (const [word, positions] of Object.entries(inv || {})) {\n    for (const pos of positions) words[pos] = word;\n  }\n  return words.filter(Boolean).join(' ');\n}\n\nfor (const item of $input.all()) {\n  for (const w of item.json.results || []) {\n    if (!w.title || !w.abstract_inverted_index) continue;\n    if (String(w.doi || '').includes('10.48550/arxiv')) continue; // déjà couvert par arXiv\n\n    const paper_id = `openalex:${String(w.id).replace('https://openalex.org/', '')}`;\n    if (seen.has(paper_id)) continue;\n    seen.add(paper_id);\n\n    out.push({\n      json: {\n        paper_id,\n        title: w.title,\n        summary: rebuild(w.abstract_inverted_index),\n        published: w.publication_date,\n        url: w.doi || w.id,\n        source: 'OpenAlex'\n      }\n    });\n  }\n}\nreturn out;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        384,
+        -80
+      ],
+      "id": "41085bf8-cfb8-4854-96ac-4f4caf341cc0",
+      "name": "Normalize OpenAlex"
+    },
+    {
+      "parameters": {
+        "numberInputs": 3
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        992,
+        -80
+      ],
+      "id": "cfbc8834-2be9-4374-a764-f19773f76b8a",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "jsCode": "const queries = [\n  '\"large language models\"',\n  '\"LLM agents\"',\n  '\"retrieval-augmented generation\"',\n  '\"parameter-efficient fine-tuning\"',\n  '\"natural language processing\"',\n  '\"MLOps\"',\n  '\"model compression\"',\n  '\"LLM evaluation\"'\n];\nreturn queries.map(q => ({ json: { query: q } }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -400,
+        -64
+      ],
+      "id": "d9232409-344b-4579-bbc0-4419de78ae0c",
+      "name": "Keywords"
+    },
+    {
+      "parameters": {
+        "jsCode": "const toArxiv = q => {\n  const t = q.trim();\n  const phrase = t.startsWith('\"') && t.endsWith('\"');\n  const inner = phrase ? t.slice(1, -1) : t;\n  const enc = encodeURIComponent(inner).replace(/%20/g, '+');\n  return phrase ? `all:%22${enc}%22` : `all:${enc}`;\n};\n\nconst search_query = $input.all().map(i => toArxiv(i.json.query)).join('+OR+');\n\nconst url = `https://export.arxiv.org/api/query?search_query=${search_query}&sortBy=submittedDate&sortOrder=descending&max_results=60`\n  .replace(/[^\\x21-\\x7E]/g, '');\n\nreturn [{ json: { arxivQuery: search_query, url } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -224,
+        -368
+      ],
+      "id": "14a1bff3-92b7-472c-9fa0-a65ef9aee30f",
+      "name": "Build arXiv query"
+    },
+    {
+      "parameters": {
+        "jsCode": "const TOP_N = 7;           // détaillés (Telegram + email)\nconst MORE_MAX = 20;       // supplémentaires (email seulement, format court)\nconst MAX_PER_SOURCE = 4;  // diversité dans le top\n\nconst esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');\n\nconst all = $input.all().map(i => i.json)\n  .sort((a, b) => b.score - a.score || (a.rank ?? 99) - (b.rank ?? 99));\n\n// Top avec plafond par source\nconst top = [];\nconst perSource = {};\nfor (const p of all) {\n  if (top.length >= TOP_N) break;\n  const s = p.source || '?';\n  if ((perSource[s] || 0) >= MAX_PER_SOURCE) continue;\n  perSource[s] = (perSource[s] || 0) + 1;\n  top.push(p);\n}\n// si le plafond a laissé des places vides, on complète\nfor (const p of all) {\n  if (top.length >= TOP_N) break;\n  if (!top.includes(p)) top.push(p);\n}\nconst more = all.filter(p => !top.includes(p)).slice(0, MORE_MAX);\nconst notShown = all.length - top.length - more.length;\n\n// Telegram (texte simple)\nconst telegramText = [\n  `📚 Research digest: top ${top.length} papers` + (more.length ? ` (+${more.length} more in your email)` : ''),\n  ...top.map((p, i) =>\n    `${i + 1}. 📄 ${p.title}\\n⭐ ${p.score}/10 · ${p.category} · ${p.source}\\n${p.summary_en}\\n🔗 ${p.url}`)\n].join('\\n\\n').slice(0, 4000);\n\n// Email (HTML)\nconst topHtml = top.map((p, i) => `\n  <div style=\"margin-bottom:20px\">\n    <h3 style=\"margin:0\">${i + 1}. <a href=\"${esc(p.url)}\">${esc(p.title)}</a></h3>\n    <div style=\"color:#666;font-size:13px;margin:2px 0\">${esc(p.category)} · ${esc(p.score)}/10 · ${esc(p.source)}</div>\n    <p style=\"margin:4px 0 0 0\">${esc(p.summary_en)}</p>\n  </div>`).join('');\n\nconst moreHtml = more.length ? `\n  <h3>More worth a look (${more.length})</h3>\n  <ul>${more.map(p => `<li><a href=\"${esc(p.url)}\">${esc(p.title)}</a> — ${esc(p.score)}/10 · ${esc(p.category)} · ${esc(p.source)}</li>`).join('')}</ul>` : '';\n\nconst footer = notShown > 0 ? `<p style=\"color:#666\">${notShown} more papers scored 7+ but are not listed.</p>` : '';\n\nreturn [{\n  json: {\n    subject: `Research digest: ${top.length} top papers + ${more.length} more`,\n    html: `<h2>Weekly Research Digest</h2>${topHtml}${moreHtml}${footer}`,\n    telegramText\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3104,
+        80
+      ],
+      "id": "bfc9ebad-b5b4-44f0-928a-5cda33ece6c2",
+      "name": "Build digest"
+    },
+    {
+      "parameters": {
+        "jsCode": "const SIZE = 8;\nconst papers = $input.all().map(i => i.json);\nconst out = [];\n\nfor (let i = 0; i < papers.length; i += SIZE) {\n  const chunk = papers.slice(i, i + SIZE);\n  const promptText = chunk.map(p =>\n    `paper_id: ${p.paper_id}\\nTitle: ${p.title}\\nAbstract: ${String(p.summary || '').slice(0, 1500)}`\n  ).join('\\n\\n---\\n\\n');\n  out.push({ json: { promptText } });\n}\nreturn out;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1824,
+        -64
+      ],
+      "id": "b50b0a95-c11c-4e04-8175-6313bac0f4bc",
+      "name": "Batch papers"
+    },
+    {
+      "parameters": {
+        "url": "https://api.openalex.org/works",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "search",
+              "value": "={{ $json.query }}"
+            },
+            {
+              "name": "filter",
+              "value": "=from_publication_date:{{ $now.minus({days: 7}).toFormat('yyyy-MM-dd') }},type:article|preprint"
+            },
+            {
+              "name": "per_page",
+              "value": "8"
+            },
+            {
+              "name": "select",
+              "value": "id,doi,title,publication_date,abstract_inverted_index"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        -32,
+        -64
+      ],
+      "id": "f7b94f6d-f634-4faa-a583-e53048ef4180",
+      "name": "HTTP Request(OpenAlex)",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "vxyqz9BxIiG7P15M",
+          "name": "OpenAlex"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "url": "https://api.archives-ouvertes.fr/search/",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "={{ $json.query }}"
+            },
+            {
+              "name": "fq",
+              "value": "=docType_s:(ART OR COMM OR UNDEFINED) AND producedDateY_i:[{{ $now.year }} TO *]"
+            },
+            {
+              "name": "sort",
+              "value": "producedDateY_i desc"
+            },
+            {
+              "name": "rows",
+              "value": "8"
+            },
+            {
+              "name": "wt",
+              "value": "json"
+            },
+            {
+              "name": "fl",
+              "value": "halId_s,title_s,abstract_s,uri_s,producedDate_s,submittedDate_s,arxivId_s,doiId_s,docType_s"
+            }
+          ]
+        },
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        -192,
+        304
+      ],
+      "id": "774f4bde-e4dd-49d8-bd41-bf7e9c56bbb9",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "const DAYS = 7;                          // fenêtre glissante, en jours\nconst cutoff = Date.now() - DAYS * 24 * 3600 * 1000;\nconst first = v => Array.isArray(v) ? v[0] : v;\nconst seen = new Set();\nconst out = [];\n\nfor (const item of $input.all()) {\n  for (const d of (item.json.response?.docs || [])) {\n    const title = first(d.title_s);\n    const summary = first(d.abstract_s);\n    if (!title || !summary) continue;\n    if (d.arxivId_s) continue;            // déjà couvert par la branche arXiv\n\n    const dateStr = d.submittedDate_s || d.producedDate_s || '';\n    const t = Date.parse(String(dateStr).replace(' ', 'T'));\n    if (!isNaN(t) && t < cutoff) continue;\n\n    const paper_id = `hal:${d.halId_s}`;\n    if (seen.has(paper_id)) continue;\n    seen.add(paper_id);\n\n    out.push({ json: {\n      paper_id,\n      title,\n      summary,\n      published: dateStr,\n      url: d.uri_s || `https://hal.science/${d.halId_s}`,\n      source: 'HAL'\n    }});\n  }\n}\nreturn out;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        32,
+        304
+      ],
+      "id": "8c0d915c-d7c9-4ba5-8e46-ac7f64017738",
+      "name": "Normalize HAL"
+    },
+    {
+      "parameters": {
+        "jsCode": "const norm = s => String(s || '')\n  .toLowerCase()\n  .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')\n  .replace(/[^a-z0-9]+/g, ' ')\n  .trim();\n\n// en cas de doublon, on garde la source la plus fiable\nconst priority = { arXiv: 0, OpenAlex: 1, HAL: 2 };\n\nconst items = $input.all().map(i => i.json)\n  .sort((a, b) => (priority[a.source] ?? 9) - (priority[b.source] ?? 9));\n\nconst seen = new Set();\nconst bySource = {};\nfor (const p of items) {\n  const key = norm(p.title);\n  if (!key || seen.has(key)) continue;\n  seen.add(key);\n  (bySource[p.source] ||= []).push(p);\n}\n\n// alternance entre sources : le Limit garde ainsi un melange equilibre\nconst lists = Object.values(bySource);\nconst out = [];\nfor (let i = 0; lists.some(l => i < l.length); i++) {\n  for (const l of lists) if (i < l.length) out.push({ json: l[i] });\n}\nreturn out;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1216,
+        -64
+      ],
+      "id": "207520d3-8654-4ba2-9b0d-21eb0ee17c72",
+      "name": "Deduplicate"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "run-radar",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -784,
+        -96
+      ],
+      "id": "774a3ec8-abaa-4f0b-9094-b8c083746841",
+      "name": "Webhook",
+      "webhookId": "068d834d-b8ef-4056-a797-345b138f4802"
+    },
+    {
+      "parameters": {
+        "maxItems": 100
+      },
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        1600,
+        -64
+      ],
+      "id": "673b20d3-01db-4e63-b9a7-7c9c1f74223c",
+      "name": "Limit(100)"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        []
+      ]
+    },
+    "XML": {
+      "main": [
+        [
+          {
+            "node": "Normalize arXiv",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Command": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "XML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Parse Gemini",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize arXiv": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Score >= 7": {
+      "main": [
+        [
+          {
+            "node": "Sort",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sort": {
+      "main": [
+        [
+          {
+            "node": "Build digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Gemini": {
+      "main": [
+        [
+          {
+            "node": "Score >= 7",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Mémoriser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Nouveau papier ?": {
+      "main": [
+        [
+          {
+            "node": "Limit(100)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize OpenAlex": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Deduplicate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Keywords": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request(OpenAlex)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Build arXiv query",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build arXiv query": {
+      "main": [
+        [
+          {
+            "node": "Execute Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build digest": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Batch papers": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request(OpenAlex)": {
+      "main": [
+        [
+          {
+            "node": "Normalize OpenAlex",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Normalize HAL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize HAL": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Deduplicate": {
+      "main": [
+        [
+          {
+            "node": "Nouveau papier ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Keywords",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit(100)": {
+      "main": [
+        [
+          {
+            "node": "Batch papers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "timezone": "Africa/Casablanca",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "a4b9121f-768f-4e09-bbbb-5a4eb16fe608",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "nodeGroups": [],
+  "id": "OyERPeDCenxFlv0P",
+  "tags": []
+}
